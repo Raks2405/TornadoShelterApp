@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -13,25 +13,12 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-type Shelter = {
-  id: number;
-  name: string;
-  lat: number;
-  lng: number;
-  distance: string;
-  time: string;
-  occupants: string;
-  phone: string;
-  address: string;
-  accessible: boolean;
-};
-
 const { width, height } = Dimensions.get('window');
 
-const TornadoShelterApp: React.FC = () => {
-  const [selectedShelter, setSelectedShelter] = useState<Shelter | null>(null);
-  const [bottomSheetExpanded, setBottomSheetExpanded] = useState<boolean>(false);
-  const [searchInput, setSearchInput] = useState<string>('');
+const TornadoShelterApp = () => {
+  const [selectedShelter, setSelectedShelter] = useState(null);
+  const [bottomSheetExpanded, setBottomSheetExpanded] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
 
   // Weather data
   const weatherData = {
@@ -43,7 +30,7 @@ const TornadoShelterApp: React.FC = () => {
   };
 
   // Shelter data
-  const shelters: Shelter[] = [
+  const shelters = [
     {
       id: 1,
       name: 'OSU Colvin Center',
@@ -94,21 +81,21 @@ const TornadoShelterApp: React.FC = () => {
     },
   ];
 
-  const getThreatColor = (probability: number): string => {
+  const getThreatColor = (probability) => {
     if (probability >= 70) return '#ef4444';
     if (probability >= 40) return '#f97316';
     if (probability >= 20) return '#eab308';
     return '#22c55e';
   };
 
-  const getThreatText = (probability: number): string => {
+  const getThreatText = (probability) => {
     if (probability >= 70) return 'SEVERE';
     if (probability >= 40) return 'HIGH';
     if (probability >= 20) return 'MODERATE';
     return 'LOW';
   };
 
-  const openMaps = (lat: number, lng: number): void => {
+  const openMaps = (lat, lng) => {
     const scheme = Platform.select({
       ios: 'maps:0,0?q=',
       android: 'geo:0,0?q=',
@@ -119,10 +106,11 @@ const TornadoShelterApp: React.FC = () => {
       ios: `${scheme}${label}@${latLng}`,
       android: `${scheme}${latLng}(${label})`,
     });
-    if (url) Linking.openURL(url);
+
+    Linking.openURL(null);
   };
 
-  const makeCall = (phoneNumber: string): void => {
+  const makeCall = (phoneNumber) => {
     Linking.openURL(`tel:${phoneNumber}`);
   };
 
@@ -149,7 +137,7 @@ const TornadoShelterApp: React.FC = () => {
           />
         </View>
 
-        {/* Tornado Threat Bar */}
+        {/* Status Bar */}
         <View
           style={[
             styles.statusBar,
@@ -172,12 +160,17 @@ const TornadoShelterApp: React.FC = () => {
         </View>
       </View>
 
-      {/* Map Placeholder */}
+      {/* Map Area */}
       <View style={styles.mapContainer}>
+        {/* Placeholder for Map */}
         <View style={styles.mapPlaceholder}>
           <Ionicons name="map" size={48} color="#d1d5db" />
-          <Text style={styles.mapPlaceholderText}>Integrate React Native Maps</Text>
-          <Text style={styles.mapPlaceholderSubtext}>Centered on Oklahoma</Text>
+          <Text style={styles.mapPlaceholderText}>
+            Integrate React Native Maps
+          </Text>
+          <Text style={styles.mapPlaceholderSubtext}>
+            Centered on Oklahoma
+          </Text>
         </View>
 
         {/* Compass */}
@@ -185,7 +178,7 @@ const TornadoShelterApp: React.FC = () => {
           <MaterialCommunityIcons name="compass" size={24} color="#2563eb" />
         </View>
 
-        {/* Weather Stats */}
+        {/* Weather Stats Panel */}
         <View style={styles.weatherStats}>
           <Text style={styles.weatherStatsTitle}>Weather Stats</Text>
           <View style={styles.weatherStatRow}>
@@ -262,7 +255,9 @@ const TornadoShelterApp: React.FC = () => {
             <View style={styles.shelterPopupButtons}>
               <TouchableOpacity
                 style={[styles.shelterPopupButton, styles.directionsButton]}
-                onPress={() => openMaps(selectedShelter.lat, selectedShelter.lng)}>
+                onPress={() =>
+                  openMaps(selectedShelter.lat, selectedShelter.lng)
+                }>
                 <Ionicons name="navigate" size={16} color="white" />
                 <Text style={styles.shelterPopupButtonText}>Directions</Text>
               </TouchableOpacity>
@@ -302,6 +297,7 @@ const TornadoShelterApp: React.FC = () => {
         </TouchableOpacity>
 
         {!bottomSheetExpanded ? (
+          // Collapsed View
           <View style={styles.collapsedView}>
             <View style={styles.nearestShelterInfo}>
               <View>
@@ -330,9 +326,8 @@ const TornadoShelterApp: React.FC = () => {
             </View>
           </View>
         ) : (
-          <ScrollView
-            style={styles.expandedView}
-            showsVerticalScrollIndicator={false}>
+          // Expanded View
+          <ScrollView style={styles.expandedView} showsVerticalScrollIndicator={false}>
             <Text style={styles.expandedTitle}>Nearby Shelters</Text>
 
             {shelters.map((shelter, index) => (
@@ -400,10 +395,13 @@ const TornadoShelterApp: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f3f4f6' },
+  container: {
+    flex: 1,
+    backgroundColor: '#f3f4f6',
+  },
   header: {
     backgroundColor: 'white',
-    paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 20) + 10,
+    paddingTop: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight + 10,
     paddingHorizontal: 16,
     paddingBottom: 12,
     shadowColor: '#000',
@@ -423,8 +421,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 12,
   },
-  searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, paddingVertical: 12, fontSize: 14, color: '#1f2937' },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#1f2937',
+  },
   statusBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -432,20 +437,50 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
   },
-  statusLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  statusTextContainer: { marginLeft: 8, flex: 1 },
-  statusTitle: { color: 'white', fontWeight: 'bold', fontSize: 12 },
-  statusSubtitle: { color: 'white', fontSize: 10, opacity: 0.9 },
-  statusPercentage: { color: 'white', fontSize: 24, fontWeight: 'bold' },
-  mapContainer: { flex: 1, position: 'relative' },
+  statusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  statusTextContainer: {
+    marginLeft: 8,
+    flex: 1,
+  },
+  statusTitle: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  statusSubtitle: {
+    color: 'white',
+    fontSize: 10,
+    opacity: 0.9,
+  },
+  statusPercentage: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  mapContainer: {
+    flex: 1,
+    position: 'relative',
+  },
   mapPlaceholder: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#e0f2fe',
   },
-  mapPlaceholderText: { marginTop: 8, fontSize: 12, color: '#9ca3af' },
-  mapPlaceholderSubtext: { fontSize: 12, color: '#9ca3af', fontWeight: '600' },
+  mapPlaceholderText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#9ca3af',
+  },
+  mapPlaceholderSubtext: {
+    fontSize: 12,
+    color: '#9ca3af',
+    fontWeight: '600',
+  },
   compass: {
     position: 'absolute',
     top: 16,
@@ -463,7 +498,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 16,
     right: 16,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 12,
     padding: 12,
     width: 140,
@@ -485,9 +520,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  weatherStatLabel: { flexDirection: 'row', alignItems: 'center' },
-  weatherStatText: { fontSize: 10, color: '#6b7280', marginLeft: 4 },
-  weatherStatValue: { fontSize: 10, fontWeight: 'bold', color: '#1f2937' },
+  weatherStatLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  weatherStatText: {
+    fontSize: 10,
+    color: '#6b7280',
+    marginLeft: 4,
+  },
+  weatherStatValue: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
   shelterPopup: {
     position: 'absolute',
     top: '35%',
@@ -504,8 +550,16 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#e5e7eb',
   },
-  closeButton: { position: 'absolute', top: 8, right: 8, padding: 4 },
-  closeButtonText: { color: '#9ca3af', fontSize: 18 },
+  closeButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
+  },
+  closeButtonText: {
+    color: '#9ca3af',
+    fontSize: 18,
+  },
   shelterPopupName: {
     fontWeight: 'bold',
     fontSize: 14,
@@ -513,21 +567,34 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingRight: 24,
   },
-  shelterPopupAddress: { fontSize: 10, color: '#6b7280', marginBottom: 12 },
+  shelterPopupAddress: {
+    fontSize: 10,
+    color: '#6b7280',
+    marginBottom: 12,
+  },
   shelterPopupStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  shelterPopupStat: { alignItems: 'center', flex: 1 },
+  shelterPopupStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
   shelterPopupStatValue: {
     fontWeight: '600',
     fontSize: 12,
     color: '#1f2937',
     marginTop: 4,
   },
-  shelterPopupStatLabel: { fontSize: 10, color: '#6b7280' },
-  shelterPopupButtons: { flexDirection: 'row', gap: 8 },
+  shelterPopupStatLabel: {
+    fontSize: 10,
+    color: '#6b7280',
+  },
+  shelterPopupButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   shelterPopupButton: {
     flex: 1,
     flexDirection: 'row',
@@ -537,9 +604,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 4,
   },
-  directionsButton: { backgroundColor: '#2563eb' },
-  callButton: { backgroundColor: '#22c55e' },
-  shelterPopupButtonText: { color: 'white', fontWeight: '600', fontSize: 12 },
+  directionsButton: {
+    backgroundColor: '#2563eb',
+  },
+  callButton: {
+    backgroundColor: '#22c55e',
+  },
+  shelterPopupButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 12,
+  },
   bottomSheet: {
     position: 'absolute',
     bottom: 0,
@@ -567,27 +642,62 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     marginBottom: 8,
   },
-  handleContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  handleText: { fontSize: 14, fontWeight: '600', color: '#374151' },
-  collapsedView: { padding: 16 },
+  handleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  handleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  collapsedView: {
+    padding: 16,
+  },
   nearestShelterInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  nearestLabel: { fontSize: 10, color: '#6b7280', marginBottom: 4 },
-  nearestName: { fontWeight: 'bold', fontSize: 14, color: '#1f2937' },
-  nearestStats: { flexDirection: 'row', gap: 12, marginTop: 4 },
-  nearestStat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  nearestStatText: { fontSize: 10, color: '#6b7280' },
+  nearestLabel: {
+    fontSize: 10,
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  nearestName: {
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#1f2937',
+  },
+  nearestStats: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+  },
+  nearestStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  nearestStatText: {
+    fontSize: 10,
+    color: '#6b7280',
+  },
   goButton: {
     backgroundColor: '#2563eb',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
-  goButtonText: { color: 'white', fontWeight: '600', fontSize: 14 },
-  expandedView: { padding: 16 },
+  goButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  expandedView: {
+    padding: 16,
+  },
   expandedTitle: {
     fontWeight: 'bold',
     fontSize: 18,
@@ -602,8 +712,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
-  shelterCardHeader: { marginBottom: 8 },
-  shelterCardInfo: { flex: 1 },
+  shelterCardHeader: {
+    marginBottom: 8,
+  },
+  shelterCardInfo: {
+    flex: 1,
+  },
   closestBadge: {
     backgroundColor: '#22c55e',
     alignSelf: 'flex-start',
@@ -612,22 +726,41 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 4,
   },
-  closestBadgeText: { color: 'white', fontSize: 10, fontWeight: 'bold' },
-  shelterCardName: { fontWeight: 'bold', fontSize: 14, color: '#1f2937' },
-  shelterCardAddress: { fontSize: 10, color: '#6b7280' },
+  closestBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  shelterCardName: {
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#1f2937',
+  },
+  shelterCardAddress: {
+    fontSize: 10,
+    color: '#6b7280',
+  },
   shelterCardStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  shelterCardStat: { flex: 1 },
-  shelterCardStatLabel: { fontSize: 10, color: '#6b7280' },
+  shelterCardStat: {
+    flex: 1,
+  },
+  shelterCardStatLabel: {
+    fontSize: 10,
+    color: '#6b7280',
+  },
   shelterCardStatValue: {
     fontWeight: '600',
     fontSize: 12,
     color: '#1f2937',
   },
-  shelterCardButtons: { flexDirection: 'row', gap: 8 },
+  shelterCardButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   shelterCardButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -636,10 +769,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 4,
   },
-  phoneButton: { backgroundColor: '#e5e7eb', paddingHorizontal: 16 },
-  infoButton: { backgroundColor: '#e5e7eb', paddingHorizontal: 16 },
-  shelterCardButtonText: { color: 'white', fontWeight: '600', fontSize: 10 },
-  infoButtonText: { color: '#374151', fontWeight: '600', fontSize: 10 },
+  phoneButton: {
+    backgroundColor: '#e5e7eb',
+    paddingHorizontal: 16,
+  },
+  infoButton: {
+    backgroundColor: '#e5e7eb',
+    paddingHorizontal: 16,
+  },
+  shelterCardButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 10,
+  },
+  infoButtonText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 10,
+  },
 });
 
 export default TornadoShelterApp;

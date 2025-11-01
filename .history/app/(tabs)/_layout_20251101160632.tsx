@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Tabs } from 'expo-router';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -6,12 +6,6 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        title: 'index'
-
-      }}>
-    </Stack>
+    <Tabs.Screen name="index" options={{ href: null }} />
   );
 }
