@@ -1,0 +1,419 @@
+import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
+import * as Location from "expo-location";
+import { StatusBar } from "expo-status-bar";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Dimensions,
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
+import MapView, { Circle, Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
+import { fetchTornadoIndicators } from "../../services/weatherService";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+type Shelter = {
+  id: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  distance: string;
+  time: string;
+  occupants: string;
+  phone: string;
+  address: string;
+  accessible: boolean;
+};
+
+type LocationCoords = { latitude: number; longitude: number };
+
+type WeatherData = {
+  stormProbability: number;
+  windSpeed: number;
+  pressure: number;
+  lastUpdate: string;
+};
+
+const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY;
+
+const App: React.FC = () => {
+  const [selectedShelter, setSelectedShelter] = useState<Shelter | null>(null);
+  const [userLocation, setUserLocation] = useState<LocationCoords | null>(null);
+  const [region, setRegion] = useState<Region>({
+    latitude: 36.1156,
+    longitude: -97.0584,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  });
+  const [weatherData, setWeatherData] = useState<WeatherData>({
+    stormProbability: 0,
+    windSpeed: 0,
+    pressure: 0,
+    lastUpdate: "—",
+  });
+
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const mapRef = useRef<MapView | null>(null);
+  const bottomSheetAnim = useRef(new Animated.Value(150)).current;
+
+  // ---------- Shelter data (static list for now) ----------
+  const shelters: Shelter[] = [
+    {
+      id: 1,
+      name: "OSU Colvin Center",
+      latitude: 36.1251,
+      longitude: -97.0782,
+      distance: "0.8 mi",
+      time: "3 min",
+      occupants: "127/500",
+      phone: "4057447678",
+      address: "4646 W Hall of Fame Ave",
+      accessible: true,
+    },
+    {
+      id: 2,
+      name: "Stillwater Public Library",
+      latitude: 36.1156,
+      longitude: -97.0584,
+      distance: "1.2 mi",
+      time: "5 min",
+      occupants: "45/200",
+      phone: "4053723633",
+      address: "1107 S Duck St",
+      accessible: true,
+    },
+  ];
+
+  // ---------- Fetch weather ----------
+  useEffect(() => {
+    const getWeather = async () => {
+      const data = await fetchTornadoIndicators(region.latitude, region.longitude);
+      if (!data) return;
+
+      console.log("🌪 Tornado Data:", data);
+      const prob =
+        data.threat === "SEVERE"
+          ? 90
+          : data.threat === "HIGH"
+          ? 70
+          : data.threat === "MODERATE"
+          ? 40
+          : 10;
+
+      setWeatherData({
+        stormProbability: prob,
+        windSpeed: data.wind,
+        pressure: data.pressure,
+        lastUpdate: new Date().toLocaleTimeString(),
+      });
+    };
+
+    getWeather();
+    const interval = setInterval(getWeather, 30 * 60 * 1000); // refresh every 30 min
+    return () => clearInterval(interval);
+  }, [region]);
+
+  // ---------- Get user location ----------
+  useEffect(() => {
+    getUserLocation();
+  }, []);
+
+  const getUserLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
+
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const coords = {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      };
+      setUserLocation(coords);
+      setRegion({ ...coords, latitudeDelta: 0.05, longitudeDelta: 0.05 });
+    } catch (err) {
+      console.warn("Location error:", err);
+    }
+  };
+
+  // ---------- UI helpers ----------
+  const toggleBottomSheet = () => {
+    Animated.spring(bottomSheetAnim, {
+      toValue: sheetExpanded ? 150 : SCREEN_HEIGHT * 0.6,
+      useNativeDriver: false,
+    }).start();
+    setSheetExpanded(!sheetExpanded);
+  };
+
+  const openDirections = (s: Shelter) => {
+    const scheme = Platform.select({ ios: "maps:", android: "geo:" });
+    const url = Platform.select({
+      ios: `${scheme}?daddr=${s.latitude},${s.longitude}`,
+      android: `${scheme}0,0?q=${s.latitude},${s.longitude}(${s.name})`,
+    });
+    if (url) Linking.openURL(url);
+  };
+
+  const callShelter = (phone: string) => Linking.openURL(`tel:${phone}`);
+
+  const getThreatColor = (p: number) =>
+    p >= 70 ? "#EF4444" : p >= 40 ? "#F97316" : p >= 20 ? "#EAB308" : "#10B981";
+  const getThreatText = (p: number) =>
+    p >= 70 ? "SEVERE" : p >= 40 ? "HIGH" : p >= 20 ? "MODERATE" : "LOW";
+  const getThreatSymbol = (p: number) =>
+    p >= 70 ? "warning" : p >= 40 ? "alert-sharp" : "happy";
+
+  // ---------- Render ----------
+  return (
+    <View style={styles.container}>
+      <StatusBar style="dark" />
+
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        provider={PROVIDER_GOOGLE}
+        region={region}
+        showsUserLocation
+      >
+        {userLocation && (
+          <Circle
+            center={userLocation}
+            radius={500}
+            fillColor="rgba(59,130,246,0.2)"
+            strokeColor="rgba(59,130,246,0.5)"
+          />
+        )}
+        {shelters.map((s) => (
+          <Marker
+            key={s.id}
+            coordinate={{ latitude: s.latitude, longitude: s.longitude }}
+            onPress={() => setSelectedShelter(s)}
+          >
+            <View style={[styles.customMarker, { backgroundColor: "#10B981" }]}>
+              <Ionicons name="home" size={20} color="white" />
+            </View>
+          </Marker>
+        ))}
+      </MapView>
+
+      {/* ---------- Search ---------- */}
+      <View style={styles.autocompleteContainer}>
+        <GooglePlacesAutocomplete
+          placeholder="Search location..."
+          fetchDetails
+          onPress={(data, details = null) => {
+            const lat = details?.geometry?.location?.lat;
+            const lng = details?.geometry?.location?.lng;
+            if (lat && lng) {
+              const newRegion = {
+                latitude: lat,
+                longitude: lng,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              };
+              setRegion(newRegion);
+              mapRef.current?.animateToRegion(newRegion, 1000);
+            }
+          }}
+          query={{ key: GOOGLE_MAPS_API_KEY, language: "en" }}
+          styles={{
+            container: { flex: 0, width: "100%" },
+            textInput: {
+              backgroundColor: "white",
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              fontSize: 14,
+              elevation: 2,
+            },
+          }}
+        />
+      </View>
+
+      {/* ---------- Tornado Status ---------- */}
+      <View
+        style={[
+          styles.statusBar,
+          { backgroundColor: getThreatColor(weatherData.stormProbability) },
+        ]}
+      >
+        <View style={styles.statusLeft}>
+          <Ionicons
+            name={getThreatSymbol(weatherData.stormProbability)}
+            size={20}
+            color="white"
+          />
+          <View style={styles.statusText}>
+            <Text style={styles.statusTitle}>
+              TORNADO THREAT: {getThreatText(weatherData.stormProbability)}
+            </Text>
+            <Text style={styles.statusSubtitle}>
+              Updated {weatherData.lastUpdate}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.statusPercentage}>
+          {weatherData.stormProbability}%
+        </Text>
+      </View>
+
+      {/* ---------- Bottom Sheet ---------- */}
+      <Animated.View style={[styles.bottomSheet, { height: bottomSheetAnim }]}>
+        <TouchableOpacity style={styles.pullTab} onPress={toggleBottomSheet}>
+          <View style={styles.pullIndicator} />
+          <View style={styles.pullTabContent}>
+            <Ionicons
+              name={sheetExpanded ? "chevron-down" : "chevron-up"}
+              size={20}
+              color="#6B7280"
+            />
+            <Text style={styles.pullTabText}>
+              {sheetExpanded ? "Hide Shelters" : `View All Shelters (${shelters.length})`}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <ScrollView style={styles.sheetContent}>
+          {shelters.map((s) => (
+            <View key={s.id} style={styles.shelterCard}>
+              <Text style={styles.shelterName}>{s.name}</Text>
+              <Text style={styles.shelterAddress}>{s.address}</Text>
+              <View style={styles.shelterStats}>
+                <Text style={styles.shelterText}>Distance: {s.distance}</Text>
+                <Text style={styles.shelterText}>Time: {s.time}</Text>
+                <Text style={styles.shelterText}>Capacity: {s.occupants}</Text>
+              </View>
+              <View style={styles.shelterButtons}>
+                <TouchableOpacity
+                  style={styles.directionsButton}
+                  onPress={() => openDirections(s)}
+                >
+                  <Ionicons name="navigate" size={16} color="white" />
+                  <Text style={styles.buttonText}>Directions</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.callButton}
+                  onPress={() => callShelter(s.phone)}
+                >
+                  <Ionicons name="call" size={16} color="white" />
+                  <Text style={styles.buttonText}>Call</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      </Animated.View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#F3F4F6" },
+  map: { flex: 1 },
+  autocompleteContainer: {
+    position: "absolute",
+    top: 50,
+    left: 16,
+    right: 16,
+    zIndex: 10,
+  },
+  customMarker: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "white",
+  },
+  statusBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 12,
+    position: "absolute",
+    top: 110,
+    left: 16,
+    right: 16,
+  },
+  statusLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
+  statusText: { marginLeft: 8, flex: 1 },
+  statusTitle: { color: "white", fontWeight: "bold", fontSize: 12 },
+  statusSubtitle: { color: "white", fontSize: 10, opacity: 0.9 },
+  statusPercentage: { color: "white", fontSize: 24, fontWeight: "bold" },
+  bottomSheet: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "white",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    elevation: 10,
+  },
+  pullTab: {
+    paddingVertical: 12,
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  pullIndicator: {
+    width: 48,
+    height: 4,
+    backgroundColor: "#D1D5DB",
+    borderRadius: 2,
+    marginBottom: 8,
+  },
+  pullTabContent: { flexDirection: "row", alignItems: "center" },
+  pullTabText: { fontSize: 14, fontWeight: "600", color: "#374151", marginLeft: 4 },
+  sheetContent: { padding: 16 },
+  shelterCard: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  shelterName: { fontSize: 14, fontWeight: "bold", color: "#111827" },
+  shelterAddress: { fontSize: 12, color: "#6B7280", marginBottom: 8 },
+  shelterStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  shelterText: { fontSize: 12, color: "#111827" },
+  shelterButtons: { flexDirection: "row", justifyContent: "space-between" },
+  directionsButton: {
+    backgroundColor: "#3B82F6",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
+    padding: 10,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  callButton: {
+    backgroundColor: "#10B981",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
+    padding: 10,
+    borderRadius: 8,
+  },
+  buttonText: { color: "white", fontWeight: "600", fontSize: 12, marginLeft: 4 },
+});
+
+export default App;
