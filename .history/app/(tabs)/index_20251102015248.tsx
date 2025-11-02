@@ -1,18 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { useEffect, useRef, useState } from "react";
+import Constants from "expo-constants";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
   FlatList,
   Linking,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
-import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE, Callout, Circle } from "react-native-maps";
 import { fetchTornadoIndicators } from "../../services/weatherService";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -183,8 +185,6 @@ export default function App() {
   const bottomSheetAnim = useRef(new Animated.Value(150)).current;
   const [expanded, setExpanded] = useState(false);
 
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-
   // ---------- Tornado Alert Fetch ----------
   useEffect(() => {
     const getWeather = async () => {
@@ -254,9 +254,7 @@ export default function App() {
   const getThreatText = (p: number) =>
     p >= 70 ? "SEVERE" : p >= 40 ? "HIGH" : p >= 20 ? "MODERATE" : "LOW";
   const getThreatSymbol = (p: number) =>
-    p >= 70 ? "warning" : p >= 40 ? "alert-sharp" : p >= 20 ? "alarm-sharp" : "happy";
-
-  const [refreshing, setRefreshing] = useState(false);
+    p >= 70 ? "warning" : p >= 40 ? "alert-sharp" : p >= 20 ? "alarm-sharp" : "happy"
 
   const toggleSheet = () => {
     Animated.spring(bottomSheetAnim, {
@@ -265,37 +263,6 @@ export default function App() {
     }).start();
     setExpanded(!expanded);
   };
-
-  const handleRefresh = async () => {
-    try {
-      if (!region) return;
-
-      // 👇 Start flicker effect
-      setRefreshing(true);
-      Animated.sequence([
-        Animated.timing(fadeAnim, { toValue: 0.4, duration: 150, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
-      ]).start();
-
-      const data = await fetchTornadoIndicators(region.latitude, region.longitude);
-      if (!data) return;
-
-      setWeatherData({
-        stormProbability: data.probability,
-        windSpeed: data.wind,
-        pressure: data.pressure,
-        gusts: data.gusts,
-        lastUpdate: new Date().toLocaleTimeString(),
-      });
-
-      setRefreshing(false);
-    } catch (error) {
-      console.warn("Refresh failed:", error);
-      setRefreshing(false);
-    }
-  };
-
-
 
   const openDirections = (s: Shelter) => {
     const url = Platform.select({
@@ -307,7 +274,7 @@ export default function App() {
 
   // ---------- Render ----------
   return (
-     <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+    <View style={{ flex: 1 }}>
       <MapView
         ref={mapRef}
         style={{ flex: 1 }}
@@ -357,20 +324,8 @@ export default function App() {
         </Text>
       </View>
       {/* Weather Stats Panel */}
-      {/* Weather Stats Panel */}
       <View style={styles.weatherStatsPanel}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={styles.weatherStatsTitle}>Weather Stats</Text>
-          <TouchableOpacity onPress={handleRefresh}>
-            <Ionicons
-              name="refresh"
-              size={16}
-              color="#2563EB"
-              style={{ transform: [{ rotate: refreshing ? "360deg" : "0deg" }] }}
-            />
-          </TouchableOpacity>
-        </View>
-
+        <Text style={styles.weatherStatsTitle}>Weather Stats</Text>
 
         <View style={styles.statsContainer}>
           <View style={styles.statRow}>
@@ -441,7 +396,7 @@ export default function App() {
           )}
         />
       </Animated.View>
-    </Animated.View>
+    </View>
   );
 }
 

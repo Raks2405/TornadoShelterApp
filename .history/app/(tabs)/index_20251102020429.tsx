@@ -1,18 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { useEffect, useRef, useState } from "react";
+import Constants from "expo-constants";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
   FlatList,
   Linking,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
-import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE, Callout, Circle } from "react-native-maps";
 import { fetchTornadoIndicators } from "../../services/weatherService";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -307,7 +309,7 @@ export default function App() {
 
   // ---------- Render ----------
   return (
-     <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+    <View style={{ flex: 1 }}>
       <MapView
         ref={mapRef}
         style={{ flex: 1 }}
@@ -441,7 +443,7 @@ export default function App() {
           )}
         />
       </Animated.View>
-    </Animated.View>
+    </View>
   );
 }
 

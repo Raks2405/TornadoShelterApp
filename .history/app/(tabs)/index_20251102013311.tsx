@@ -1,18 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { useEffect, useRef, useState } from "react";
+import Constants from "expo-constants";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
   FlatList,
   Linking,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
-import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE, Callout, Circle } from "react-native-maps";
 import { fetchTornadoIndicators } from "../../services/weatherService";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -34,7 +36,6 @@ type WeatherData = {
   windSpeed: number;
   pressure: number;
   lastUpdate: string;
-  gusts: number;
 };
 
 // ---------- Shelter Data ----------
@@ -124,14 +125,18 @@ const distanceMiles = (a: { latitude: number; longitude: number }, b: { latitude
 // ---------- Marker ----------
 const ShelterMarker = ({ s, onPress }: { s: Shelter; onPress: (s: Shelter) => void }) => {
   const [freeze, setFreeze] = useState(false);
+  const [showCallout, setShowCallout] = useState(false);
   const didLayout = useRef(false);
+
+  useEffect(() => {
+    // Small delay to ensure callout renders properly
+    const timer = setTimeout(() => setShowCallout(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <Marker
       coordinate={{ latitude: s.latitude, longitude: s.longitude }}
-      title={s.name}
-      description={`${s.address}`}
-      onCalloutPress={() => onPress(s)}
       tracksViewChanges={!freeze}
       anchor={{ x: 0.5, y: 0.5 }}
     >
@@ -156,6 +161,22 @@ const ShelterMarker = ({ s, onPress }: { s: Shelter; onPress: (s: Shelter) => vo
       >
         <Ionicons name="home" size={20} color="#fff" />
       </View>
+
+      {showCallout && (
+        <Callout onPress={() => onPress(s)}>
+          <View style={{ width: 220, padding: 12 }}>
+            <Text style={{ fontWeight: "bold", color: "#111", fontSize: 14 }}>
+              {s.name}
+            </Text>
+            <Text style={{ color: "#555", fontSize: 12, marginTop: 2 }}>
+              {s.address}
+            </Text>
+            <Text style={{ color: "#007AFF", fontSize: 11, marginTop: 6 }}>
+              Tap for directions →
+            </Text>
+          </View>
+        </Callout>
+      )}
     </Marker>
   );
 };
@@ -175,15 +196,12 @@ export default function App() {
     stormProbability: 0,
     windSpeed: 0,
     pressure: 0,
-    gusts: 0,
     lastUpdate: "—",
   });
 
   const mapRef = useRef<MapView | null>(null);
   const bottomSheetAnim = useRef(new Animated.Value(150)).current;
   const [expanded, setExpanded] = useState(false);
-
-  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   // ---------- Tornado Alert Fetch ----------
   useEffect(() => {
@@ -199,7 +217,6 @@ export default function App() {
         stormProbability: data.probability,
         windSpeed: data.wind,
         pressure: data.pressure,
-        gusts: data.gusts,
         lastUpdate: new Date().toLocaleTimeString(),
       });
     };
@@ -254,9 +271,7 @@ export default function App() {
   const getThreatText = (p: number) =>
     p >= 70 ? "SEVERE" : p >= 40 ? "HIGH" : p >= 20 ? "MODERATE" : "LOW";
   const getThreatSymbol = (p: number) =>
-    p >= 70 ? "warning" : p >= 40 ? "alert-sharp" : p >= 20 ? "alarm-sharp" : "happy";
-
-  const [refreshing, setRefreshing] = useState(false);
+    p >= 70 ? "warning" : p >= 40 ? "alert-sharp" : p >= 20 ? "alarm-sharp" : "happy"
 
   const toggleSheet = () => {
     Animated.spring(bottomSheetAnim, {
@@ -265,37 +280,6 @@ export default function App() {
     }).start();
     setExpanded(!expanded);
   };
-
-  const handleRefresh = async () => {
-    try {
-      if (!region) return;
-
-      // 👇 Start flicker effect
-      setRefreshing(true);
-      Animated.sequence([
-        Animated.timing(fadeAnim, { toValue: 0.4, duration: 150, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
-      ]).start();
-
-      const data = await fetchTornadoIndicators(region.latitude, region.longitude);
-      if (!data) return;
-
-      setWeatherData({
-        stormProbability: data.probability,
-        windSpeed: data.wind,
-        pressure: data.pressure,
-        gusts: data.gusts,
-        lastUpdate: new Date().toLocaleTimeString(),
-      });
-
-      setRefreshing(false);
-    } catch (error) {
-      console.warn("Refresh failed:", error);
-      setRefreshing(false);
-    }
-  };
-
-
 
   const openDirections = (s: Shelter) => {
     const url = Platform.select({
@@ -307,7 +291,7 @@ export default function App() {
 
   // ---------- Render ----------
   return (
-     <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+    <View style={{ flex: 1 }}>
       <MapView
         ref={mapRef}
         style={{ flex: 1 }}
@@ -356,64 +340,6 @@ export default function App() {
           {weatherData.stormProbability}%
         </Text>
       </View>
-      {/* Weather Stats Panel */}
-      {/* Weather Stats Panel */}
-      <View style={styles.weatherStatsPanel}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={styles.weatherStatsTitle}>Weather Stats</Text>
-          <TouchableOpacity onPress={handleRefresh}>
-            <Ionicons
-              name="refresh"
-              size={16}
-              color="#2563EB"
-              style={{ transform: [{ rotate: refreshing ? "360deg" : "0deg" }] }}
-            />
-          </TouchableOpacity>
-        </View>
-
-
-        <View style={styles.statsContainer}>
-          <View style={styles.statRow}>
-            <View style={styles.statLabelContainer}>
-              <Ionicons name="alert-circle" size={12} color="#6B7280" />
-              <Text style={styles.statLabel}>Storm</Text>
-            </View>
-            <Text style={[styles.statValue, { color: "#F97316" }]}>
-              {weatherData.stormProbability}%
-            </Text>
-          </View>
-
-          <View style={styles.statRow}>
-            <View style={styles.statLabelContainer}>
-              <Ionicons name="thunderstorm" size={12} color="#6B7280" />
-              <Text style={styles.statLabel}>Wind</Text>
-            </View>
-            <Text style={styles.statValue}>
-              {(weatherData.windSpeed * 2.237).toFixed(1)} mph
-            </Text>
-          </View>
-
-          <View style={styles.statRow}>
-            <View style={styles.statLabelContainer}>
-              <Ionicons name="water" size={12} color="#6B7280" />
-              <Text style={styles.statLabel}>Gusts</Text>
-            </View>
-            <Text style={styles.statValue}>
-              {(weatherData.gusts * 2.237).toFixed(1)} mph
-            </Text>
-          </View>
-
-          <View style={styles.statRow}>
-            <View style={styles.statLabelContainer}>
-              <Ionicons name="barbell" size={12} color="#6B7280" />
-              <Text style={styles.statLabel}>Pressure</Text>
-            </View>
-            <Text style={styles.statValue}>
-              {(weatherData.pressure * 0.02953).toFixed(2)}"
-            </Text>
-          </View>
-        </View>
-      </View>
 
       {/* Bottom Sheet */}
       <Animated.View style={[styles.sheet, { height: bottomSheetAnim }]}>
@@ -441,7 +367,7 @@ export default function App() {
           )}
         />
       </Animated.View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -479,50 +405,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
     paddingVertical: 10,
-  },
-  weatherStatsPanel: {
-    position: "absolute",
-    top: 110,
-    right: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: 12,
-    padding: 12,
-    width: 144,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-
-  weatherStatsTitle: {
-    fontWeight: "bold",
-    fontSize: 12,
-    color: "#374151",
-    marginBottom: 8,
-  },
-  statsContainer: {
-    gap: 8, // Note: 'gap' works in React Native 0.71+, otherwise use marginBottom on statRow
-  },
-  statRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    // marginBottom: 8, // Use this if 'gap' doesn't work
-  },
-  statLabelContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-  },
-  statValue: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#111827",
   },
   indicator: {
     width: 50,
