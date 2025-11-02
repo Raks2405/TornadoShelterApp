@@ -1,22 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as Device from "expo-device";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   Dimensions,
   FlatList,
   Linking,
   Platform,
+  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from "react-native";
+import * as Device from "expo-device";
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import {fetchTornadoIndicators} from '../../services/weatherService';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -226,17 +225,6 @@ export default function App() {
       const { status } = await Notifications.requestPermissionsAsync();
       if (status !== "granted") console.warn("Notification permission not granted!");
     })();
-  }, []);
-
-  useEffect(() => {
-    registerForPushNotificationsAsync();
-
-    // Listen for incoming notifications while app is open
-    const listener = Notifications.addNotificationReceivedListener((notif) => {
-      console.log("📨 Notification received:", notif.request.content);
-    });
-
-    return () => listener.remove();
   }, []);
 
   // ---------- Tornado Fetch ----------

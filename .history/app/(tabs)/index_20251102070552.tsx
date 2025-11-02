@@ -1,10 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as Device from "expo-device";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -16,7 +14,7 @@ import {
   View
 } from "react-native";
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import {fetchTornadoIndicators} from '../../services/weatherService';
+import { fetchTornadoIndicators } from "../../services/weatherService";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -204,7 +202,6 @@ export default function App() {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
-
   const [weatherData, setWeatherData] = useState<WeatherData>({
     stormProbability: 0,
     windSpeed: 0,
@@ -213,7 +210,6 @@ export default function App() {
     lastUpdate: "—",
   });
   const [updateTick, setUpdateTick] = useState(0);
-  const SERVER_URL = "https://tornado-push-server.onrender.com";
 
   const mapRef = useRef<MapView | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -228,28 +224,17 @@ export default function App() {
     })();
   }, []);
 
-  useEffect(() => {
-    registerForPushNotificationsAsync();
-
-    // Listen for incoming notifications while app is open
-    const listener = Notifications.addNotificationReceivedListener((notif) => {
-      console.log("📨 Notification received:", notif.request.content);
-    });
-
-    return () => listener.remove();
-  }, []);
-
   // ---------- Tornado Fetch ----------
   useEffect(() => {
     const getWeather = async () => {
-      //const data = await fetchTornadoIndicators(region.latitude, region.longitude)
-      const data = {
-        threat: "HIGH", // for testing
-        wind: 12,
-        probability: 75,
-        pressure: 1005,
-        gusts: 18,
-      };
+      const data = await fetchTornadoIndicators(region.latitude, region.longitude)
+      // const data = {
+      //   threat: "HIGH", // for testing
+      //   wind: 12,
+      //   probability: 75,
+      //   pressure: 1005,
+      //   gusts: 18,
+      // };
 
       // Animate flicker to show UI refresh
       Animated.sequence([
@@ -274,63 +259,14 @@ export default function App() {
     return () => clearInterval(interval);
   }, [region]);
 
-  async function registerForPushNotificationsAsync() {
-    if (!Device.isDevice) {
-      Alert.alert("Push notifications only work on physical devices!");
-      return null;
-    }
-
-    // Request permission
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== "granted") {
-      Alert.alert("Permission not granted for notifications");
-      return null;
-    }
-
-    // Get Expo push token
-    const tokenResponse = await Notifications.getExpoPushTokenAsync();
-    const token = tokenResponse.data;
-    console.log("📱 Expo Push Token:", token);
-
-    // Send to Render server
-    try {
-      const response = await fetch(`${SERVER_URL}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      if (!response.ok) throw new Error("Failed to register token");
-      console.log("✅ Token registered successfully on backend");
-    } catch (err) {
-      console.error("❌ Error registering token:", err);
-    }
-
-    // Android notification channel setup
-    if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("default", {
-        name: "default",
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#FF231F7C",
-      });
-    }
-
-    return token;
-  }
-
   // ---------- Notification trigger when weather changes ----------
   useEffect(() => {
     const threat =
       weatherData.stormProbability >= 70
         ? "SEVERE"
         : weatherData.stormProbability >= 40
-          ? "HIGH"
-          : "LOW";
+        ? "HIGH"
+        : "LOW";
 
     if ((threat === "HIGH" || threat === "SEVERE") && lastAlertRef.current !== threat) {
       lastAlertRef.current = threat;

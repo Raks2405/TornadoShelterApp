@@ -242,14 +242,14 @@ export default function App() {
   // ---------- Tornado Fetch ----------
   useEffect(() => {
     const getWeather = async () => {
-      //const data = await fetchTornadoIndicators(region.latitude, region.longitude)
-      const data = {
-        threat: "HIGH", // for testing
-        wind: 12,
-        probability: 75,
-        pressure: 1005,
-        gusts: 18,
-      };
+      const data = await fetchTornadoIndicators(region.latitude, region.longitude)
+      // const data = {
+      //   threat: "HIGH", // for testing
+      //   wind: 12,
+      //   probability: 75,
+      //   pressure: 1005,
+      //   gusts: 18,
+      // };
 
       // Animate flicker to show UI refresh
       Animated.sequence([
