@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Circle, Marker, PROVIDER_GOOGLE, Callout } from "react-native-maps";
 import { fetchTornadoIndicators } from "../../services/weatherService";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -128,60 +128,100 @@ const ShelterMarker = ({ s, onPress }: { s: Shelter; onPress: (s: Shelter) => vo
 
   return (
     <Marker
-      coordinate={{ latitude: s.latitude, longitude: s.longitude }}
-      // 🔹 clearer CTA in native callout
-      title={`🧭 Directions: ${s.name}`}
-      description={`${s.address}\nTap to open Maps`}
-      onCalloutPress={() => onPress(s)}
-      tracksViewChanges={!freeze}
-      anchor={{ x: 0.5, y: 0.5 }}
+  coordinate={{ latitude: s.latitude, longitude: s.longitude }}
+  // keep title only for accessibility; the visual content comes from <Callout/>
+  title={s.name}
+  description={s.address}
+  onCalloutPress={() => onPress(s)}
+  tracksViewChanges={!freeze}
+  anchor={{ x: 0.5, y: 1 }}
+  calloutAnchor={{ x: 0.5, y: 0 }}
+>
+  {/* Pin */}
+  <View
+    onLayout={() => {
+      if (!didLayout.current) {
+        didLayout.current = true;
+        setTimeout(() => setFreeze(true), 400);
+      }
+    }}
+    style={{
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: "#10B981",
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 2,
+      borderColor: "#fff",
+      elevation: 8,
+    }}
+  >
+    <Ionicons name="home" size={20} color="#fff" />
+  </View>
+
+  {/* Polished callout card */}
+  <Callout tooltip>
+    <View
+      style={{
+        backgroundColor: "#fff",
+        borderRadius: 12,
+        padding: 12,
+        maxWidth: 260,
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+        shadowColor: "#000",
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 6,
+      }}
     >
-      {/* pin container so we can overlay a small badge */}
-      <View style={{ position: 'relative' }}>
-        <View
-          onLayout={() => {
-            if (!didLayout.current) {
-              didLayout.current = true;
-              setTimeout(() => setFreeze(true), 400);
-            }
-          }}
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 17,
-            backgroundColor: "#10B981",
-            justifyContent: "center",
-            alignItems: "center",
-            borderWidth: 2,
-            borderColor: "#fff",
-            elevation: 8,
-          }}
-        >
-          <Ionicons name="home" size={20} color="#fff" />
-        </View>
+      {/* Title */}
+      <Text style={{ fontWeight: "700", color: "#111827", marginBottom: 4 }}>
+        {s.name}
+      </Text>
 
-        {/* 🔹 tiny navigate badge on the pin */}
-        <View
-          style={{
-            position: 'absolute',
-            right: -2,
-            top: -2,
-            width: 16,
-            height: 16,
-            borderRadius: 8,
-            backgroundColor: '#3B82F6',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1,
-            borderColor: '#fff',
-          }}
-          pointerEvents="none" // purely decorative
-        >
-          <Ionicons name="navigate" size={10} color="#fff" />
+      {/* Address */}
+      <Text style={{ color: "#4B5563", fontSize: 12 }}>
+        {s.address}
+      </Text>
+
+      {/* Meta row: distance (if available) */}
+      {!!s._distance && (
+        <View style={{ flexDirection: "row", marginTop: 8, alignItems: "center" }}>
+          <Ionicons name="walk" size={14} color="#6B7280" />
+          <Text style={{ marginLeft: 6, color: "#374151", fontSize: 12 }}>
+            {(s._distance).toFixed(1)} mi away
+          </Text>
         </View>
+      )}
+
+      {/* Primary action chip */}
+      <View
+        style={{
+          marginTop: 10,
+          alignSelf: "flex-start",
+          flexDirection: "row",
+          backgroundColor: "#3B82F6",
+          paddingVertical: 6,
+          paddingHorizontal: 10,
+          borderRadius: 999,
+          alignItems: "center",
+        }}
+      >
+        <Ionicons name="navigate" size={14} color="#fff" />
+        <Text style={{ color: "#fff", fontWeight: "600", marginLeft: 6, fontSize: 12 }}>
+          Get Directions
+        </Text>
       </View>
-    </Marker>
 
+      {/* Hint */}
+      <Text style={{ color: "#6B7280", fontSize: 10, marginTop: 6 }}>
+        Tap this card to open in Maps
+      </Text>
+    </View>
+  </Callout>
+</Marker>
   );
 };
 
@@ -332,7 +372,7 @@ export default function App() {
 
   // ---------- Render ----------
   return (
-    <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+     <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
       <MapView
         ref={mapRef}
         style={{ flex: 1 }}
