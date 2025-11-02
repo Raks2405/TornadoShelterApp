@@ -18,16 +18,6 @@ import { fetchTornadoIndicators } from "../../services/weatherService";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// ---------- Notification handler ----------
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
 // ---------- Types ----------
 type Shelter = {
   id: number;
@@ -48,6 +38,7 @@ type WeatherData = {
   gusts: number;
 };
 
+// ---------- Shelter Data ----------
 const sheltersRaw: Shelter[] = [
   { id: 1, name: "ATRC (Advanced Technology Research Center)", address: "111 Engineering North, Stillwater, OK 74078", latitude: 36.12378385982384, longitude: -97.06825102053767 },
   { id: 2, name: "Business (Spears School of Business)", address: "294 Business Building, Stillwater, OK 74078", latitude: 36.12274776284977, longitude: -97.06744602204951 },
@@ -118,7 +109,7 @@ const sheltersRaw: Shelter[] = [
 ];
 
 // ---------- Distance Utility ----------
-const distanceMiles = (a: LocationCoords, b: LocationCoords) => {
+const distanceMiles = (a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) => {
   const toRad = (x: number) => (x * Math.PI) / 180;
   const R = 3958.7613;
   const dLat = toRad(b.latitude - a.latitude);
@@ -131,6 +122,16 @@ const distanceMiles = (a: LocationCoords, b: LocationCoords) => {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 };
 
+useEffect(() => {
+  (async () => {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== "granted") {
+      console.warn("Notification permission not granted!");
+    }
+  })();
+}, []);
+
+
 // ---------- Marker ----------
 const ShelterMarker = ({ s, onPress }: { s: Shelter; onPress: (s: Shelter) => void }) => {
   const [freeze, setFreeze] = useState(false);
@@ -139,13 +140,15 @@ const ShelterMarker = ({ s, onPress }: { s: Shelter; onPress: (s: Shelter) => vo
   return (
     <Marker
       coordinate={{ latitude: s.latitude, longitude: s.longitude }}
-      title={`🧭 ${s.name}`}
+      // 🔹 clearer CTA in native callout
+      title={`🧭 Directions: ${s.name}`}
       description={`${s.address}\nTap to open Maps`}
       onCalloutPress={() => onPress(s)}
       tracksViewChanges={!freeze}
       anchor={{ x: 0.5, y: 0.5 }}
     >
-      <View style={{ position: "relative" }}>
+      {/* pin container so we can overlay a small badge */}
+      <View style={{ position: 'relative' }}>
         <View
           onLayout={() => {
             if (!didLayout.current) {
@@ -167,32 +170,34 @@ const ShelterMarker = ({ s, onPress }: { s: Shelter; onPress: (s: Shelter) => vo
         >
           <Ionicons name="home" size={20} color="#fff" />
         </View>
+
+        {/* 🔹 tiny navigate badge on the pin */}
         <View
           style={{
-            position: "absolute",
+            position: 'absolute',
             right: -2,
             top: -2,
             width: 16,
             height: 16,
             borderRadius: 8,
-            backgroundColor: "#3B82F6",
-            alignItems: "center",
-            justifyContent: "center",
+            backgroundColor: '#3B82F6',
+            alignItems: 'center',
+            justifyContent: 'center',
             borderWidth: 1,
-            borderColor: "#fff",
+            borderColor: '#fff',
           }}
-          pointerEvents="none"
+          pointerEvents="none" // purely decorative
         >
           <Ionicons name="navigate" size={10} color="#fff" />
         </View>
       </View>
     </Marker>
+
   );
 };
 
-// ---------- Main ----------
+// ---------- Main App ----------
 export default function App() {
-  const lastAlertRef = useRef("");
   const [shelters, setShelters] = useState<Shelter[]>([]);
   const [nearest10, setNearest10] = useState<Shelter[]>([]);
   const [userLocation, setUserLocation] = useState<LocationCoords | null>(null);
@@ -209,39 +214,17 @@ export default function App() {
     gusts: 0,
     lastUpdate: "—",
   });
-  const [updateTick, setUpdateTick] = useState(0);
 
   const mapRef = useRef<MapView | null>(null);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
   const bottomSheetAnim = useRef(new Animated.Value(150)).current;
   const [expanded, setExpanded] = useState(false);
 
-  // ---------- Ask for permissions ----------
-  useEffect(() => {
-    (async () => {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== "granted") console.warn("Notification permission not granted!");
-    })();
-  }, []);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  // ---------- Tornado Fetch ----------
+  // ---------- Tornado Alert Fetch ----------
   useEffect(() => {
     const getWeather = async () => {
-      const data = await fetchTornadoIndicators(region.latitude, region.longitude)
-      // const data = {
-      //   threat: "HIGH", // for testing
-      //   wind: 12,
-      //   probability: 75,
-      //   pressure: 1005,
-      //   gusts: 18,
-      // };
-
-      // Animate flicker to show UI refresh
-      Animated.sequence([
-        Animated.timing(fadeAnim, { toValue: 0.6, duration: 150, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
-      ]).start();
-
+      const data = await fetchTornadoIndicators(region.latitude, region.longitude);
       if (!data) return;
 
       setWeatherData({
@@ -251,41 +234,24 @@ export default function App() {
         gusts: data.gusts,
         lastUpdate: new Date().toLocaleTimeString(),
       });
-      setUpdateTick((t) => t + 1);
-    };
 
+      // ✅ Trigger notification for HIGH or SEVERE alerts
+      if (data.threat === "HIGH" || data.threat === "SEVERE") {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `⚠️ Tornado Alert: ${data.threat}`,
+            body: `Wind: ${(data.wind * 2.237).toFixed(1)} mph | Gusts: ${(data.gusts * 2.237).toFixed(1)} mph | Pressure: ${data.pressure} hPa`,
+            sound: true,
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          },
+          trigger: null, // fires immediately
+        });
+      }
+    };
     getWeather();
     const interval = setInterval(getWeather, 30 * 60 * 1000);
     return () => clearInterval(interval);
   }, [region]);
-
-  // ---------- Notification trigger when weather changes ----------
-  useEffect(() => {
-    const threat =
-      weatherData.stormProbability >= 70
-        ? "SEVERE"
-        : weatherData.stormProbability >= 40
-        ? "HIGH"
-        : "LOW";
-
-    if ((threat === "HIGH" || threat === "SEVERE") && lastAlertRef.current !== threat) {
-      lastAlertRef.current = threat;
-
-      Notifications.scheduleNotificationAsync({
-        content: {
-          title: `⚠️ Tornado Alert: ${threat}`,
-          body: `Wind: ${(weatherData.windSpeed * 2.237).toFixed(
-            1
-          )} mph | Gusts: ${(weatherData.gusts * 2.237).toFixed(
-            1
-          )} mph | Pressure: ${weatherData.pressure} hPa`,
-          sound: true,
-          priority: Notifications.AndroidNotificationPriority.HIGH,
-        },
-        trigger: null,
-      });
-    }
-  }, [weatherData]);
 
   // ---------- Location ----------
   useEffect(() => {
@@ -303,17 +269,11 @@ export default function App() {
       setUserLocation(coords);
       setRegion({ ...coords, latitudeDelta: 0.05, longitudeDelta: 0.05 });
       setShelters(sheltersRaw);
-
       subscription = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.Low, timeInterval: 10000, distanceInterval: 30 },
-        (pos) =>
-          setUserLocation({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-          })
+        (pos) => setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude })
       );
     })();
-
     return () => subscription?.remove?.();
   }, []);
 
@@ -327,13 +287,21 @@ export default function App() {
     setNearest10([...updated].sort((a, b) => (a._distance ?? 0) - (b._distance ?? 0)).slice(0, 10));
   }, [userLocation]);
 
-  // ---------- UI helpers ----------
+
+
+
+
+
+
+  // ---------- Tornado Alert UI Helpers ----------
   const getThreatColor = (p: number) =>
     p >= 70 ? "#EF4444" : p >= 40 ? "#F97316" : p >= 20 ? "#EAB308" : "#10B981";
   const getThreatText = (p: number) =>
     p >= 70 ? "SEVERE" : p >= 40 ? "HIGH" : p >= 20 ? "MODERATE" : "LOW";
   const getThreatSymbol = (p: number) =>
     p >= 70 ? "warning" : p >= 40 ? "alert-sharp" : p >= 20 ? "alarm-sharp" : "happy";
+
+  const [refreshing, setRefreshing] = useState(false);
 
   const toggleSheet = () => {
     Animated.spring(bottomSheetAnim, {
@@ -342,6 +310,37 @@ export default function App() {
     }).start();
     setExpanded(!expanded);
   };
+
+  const handleRefresh = async () => {
+    try {
+      if (!region) return;
+
+      // 👇 Start flicker effect
+      setRefreshing(true);
+      Animated.sequence([
+        Animated.timing(fadeAnim, { toValue: 0.4, duration: 150, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+      ]).start();
+
+      const data = await fetchTornadoIndicators(region.latitude, region.longitude);
+      if (!data) return;
+
+      setWeatherData({
+        stormProbability: data.probability,
+        windSpeed: data.wind,
+        pressure: data.pressure,
+        gusts: data.gusts,
+        lastUpdate: new Date().toLocaleTimeString(),
+      });
+
+      setRefreshing(false);
+    } catch (error) {
+      console.warn("Refresh failed:", error);
+      setRefreshing(false);
+    }
+  };
+
+
 
   const openDirections = (s: Shelter) => {
     const url = Platform.select({
@@ -376,7 +375,7 @@ export default function App() {
         ))}
       </MapView>
 
-      {/* Tornado Alert Banner */}
+      {/* ✅ Tornado Alert Banner */}
       <View
         style={[
           styles.statusBar,
@@ -384,22 +383,39 @@ export default function App() {
         ]}
       >
         <View style={styles.statusLeft}>
-          <Ionicons name={getThreatSymbol(weatherData.stormProbability)} size={20} color="white" />
+          <Ionicons
+            name={getThreatSymbol(weatherData.stormProbability)}
+            size={20}
+            color="white"
+          />
           <View style={styles.statusText}>
             <Text style={styles.statusTitle}>
               TORNADO THREAT: {getThreatText(weatherData.stormProbability)}
             </Text>
-            <Text style={styles.statusSubtitle}>Updated {weatherData.lastUpdate}</Text>
+            <Text style={styles.statusSubtitle}>
+              Updated {weatherData.lastUpdate}
+            </Text>
           </View>
         </View>
-        <Text style={styles.statusPercentage}>{weatherData.stormProbability}%</Text>
+        <Text style={styles.statusPercentage}>
+          {weatherData.stormProbability}%
+        </Text>
       </View>
-
+      {/* Weather Stats Panel */}
       {/* Weather Stats Panel */}
       <View style={styles.weatherStatsPanel}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
           <Text style={styles.weatherStatsTitle}>Weather Stats</Text>
+          <TouchableOpacity onPress={handleRefresh}>
+            <Ionicons
+              name="refresh"
+              size={16}
+              color="#2563EB"
+              style={{ transform: [{ rotate: refreshing ? "360deg" : "0deg" }] }}
+            />
+          </TouchableOpacity>
         </View>
+
 
         <View style={styles.statsContainer}>
           <View style={styles.statRow}>
@@ -417,7 +433,9 @@ export default function App() {
               <Ionicons name="thunderstorm" size={12} color="#6B7280" />
               <Text style={styles.statLabel}>Wind</Text>
             </View>
-            <Text style={styles.statValue}>{(weatherData.windSpeed * 2.237).toFixed(1)} mph</Text>
+            <Text style={styles.statValue}>
+              {(weatherData.windSpeed * 2.237).toFixed(1)} mph
+            </Text>
           </View>
 
           <View style={styles.statRow}>
@@ -425,7 +443,9 @@ export default function App() {
               <Ionicons name="water" size={12} color="#6B7280" />
               <Text style={styles.statLabel}>Gusts</Text>
             </View>
-            <Text style={styles.statValue}>{(weatherData.gusts * 2.237).toFixed(1)} mph</Text>
+            <Text style={styles.statValue}>
+              {(weatherData.gusts * 2.237).toFixed(1)} mph
+            </Text>
           </View>
 
           <View style={styles.statRow}>
@@ -433,7 +453,9 @@ export default function App() {
               <Ionicons name="barbell" size={12} color="#6B7280" />
               <Text style={styles.statLabel}>Pressure</Text>
             </View>
-            <Text style={styles.statValue}>{(weatherData.pressure * 0.02953).toFixed(2)}"</Text>
+            <Text style={styles.statValue}>
+              {(weatherData.pressure * 0.02953).toFixed(2)}"
+            </Text>
           </View>
         </View>
       </View>
@@ -486,26 +508,7 @@ const styles = StyleSheet.create({
   statusTitle: { color: "white", fontWeight: "bold", fontSize: 12 },
   statusSubtitle: { color: "white", fontSize: 10, opacity: 0.9 },
   statusPercentage: { color: "white", fontSize: 24, fontWeight: "bold" },
-  weatherStatsPanel: {
-    position: "absolute",
-    top: 110,
-    right: 12,
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderRadius: 12,
-    padding: 12,
-    width: 144,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-  weatherStatsTitle: { fontWeight: "bold", fontSize: 12, color: "#374151", marginBottom: 8 },
-  statsContainer: { gap: 8 },
-  statRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  statLabelContainer: { flexDirection: "row", alignItems: "center", gap: 4 },
-  statLabel: { fontSize: 12, color: "#6B7280" },
-  statValue: { fontSize: 12, fontWeight: "bold", color: "#111827" },
+
   sheet: {
     position: "absolute",
     bottom: 0,
@@ -516,8 +519,63 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     elevation: 10,
   },
-  pull: { alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#eee", paddingVertical: 10 },
-  indicator: { width: 50, height: 4, borderRadius: 2, backgroundColor: "#ccc", marginBottom: 4 },
+  pull: {
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    paddingVertical: 10,
+  },
+  weatherStatsPanel: {
+    position: "absolute",
+    top: 110,
+    right: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 12,
+    padding: 12,
+    width: 144,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+  },
+
+  weatherStatsTitle: {
+    fontWeight: "bold",
+    fontSize: 12,
+    color: "#374151",
+    marginBottom: 8,
+  },
+  statsContainer: {
+    gap: 8, // Note: 'gap' works in React Native 0.71+, otherwise use marginBottom on statRow
+  },
+  statRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    // marginBottom: 8, // Use this if 'gap' doesn't work
+  },
+  statLabelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  statValue: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#111827",
+  },
+  indicator: {
+    width: 50,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#ccc",
+    marginBottom: 4,
+  },
   sheetTitle: { fontWeight: "600", color: "#333" },
   card: {
     backgroundColor: "#f9fafb",

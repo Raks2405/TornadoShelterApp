@@ -227,7 +227,7 @@ export default function App() {
   // ---------- Tornado Fetch ----------
   useEffect(() => {
     const getWeather = async () => {
-      const data = await fetchTornadoIndicators(region.latitude, region.longitude)
+      //const data = await fetchTornadoIndicators(region.latitude, region.longitude)
       // const data = {
       //   threat: "HIGH", // for testing
       //   wind: 12,

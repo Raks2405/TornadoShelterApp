@@ -242,8 +242,6 @@ export default function App() {
         Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
       ]).start();
 
-      if (!data) return;
-
       setWeatherData({
         stormProbability: data.probability,
         windSpeed: data.wind,

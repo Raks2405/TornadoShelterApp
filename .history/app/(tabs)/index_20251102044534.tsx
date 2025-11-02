@@ -21,6 +21,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 // ---------- Notification handler ----------
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
+    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
     shouldShowBanner: true,
@@ -227,22 +228,19 @@ export default function App() {
   // ---------- Tornado Fetch ----------
   useEffect(() => {
     const getWeather = async () => {
-      const data = await fetchTornadoIndicators(region.latitude, region.longitude)
-      // const data = {
-      //   threat: "HIGH", // for testing
-      //   wind: 12,
-      //   probability: 75,
-      //   pressure: 1005,
-      //   gusts: 18,
-      // };
+      const data = {
+        threat: "HIGH", // for testing
+        wind: 12,
+        probability: 75,
+        pressure: 1005,
+        gusts: 18,
+      };
 
       // Animate flicker to show UI refresh
       Animated.sequence([
         Animated.timing(fadeAnim, { toValue: 0.6, duration: 150, useNativeDriver: true }),
         Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
       ]).start();
-
-      if (!data) return;
 
       setWeatherData({
         stormProbability: data.probability,

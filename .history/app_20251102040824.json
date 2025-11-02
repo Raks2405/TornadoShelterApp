@@ -10,10 +10,7 @@
     "newArchEnabled": true,
 
     "ios": {
-      "supportsTablet": true,
-      "config": {
-        "googleMapsApiKey": "AIzaSyArum6z5k8oW9ji69ukxNeBeqnIujRRnXw"
-      }
+      "supportsTablet": true
     },
 
     "android": {
@@ -59,11 +56,14 @@
       "reactCompiler": true
     },
 
+
     "extra": {
       "GOOGLE_MAPS_API_KEY": "AIzaSyArum6z5k8oW9ji69ukxNeBeqnIujRRnXw",
       "eas": {
-        "projectId": "0358ccfa-03ce-4dce-9e80-8eb84815b4b2"
+        "projectId": "0358ccfa-03ce-4dce-9e80-8eb84815b4b2" 
       }
     }
   }
 }
+
+

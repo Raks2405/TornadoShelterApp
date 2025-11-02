@@ -227,7 +227,7 @@ export default function App() {
   // ---------- Tornado Fetch ----------
   useEffect(() => {
     const getWeather = async () => {
-      const data = await fetchTornadoIndicators(region.latitude, region.longitude)
+      const data = await fetchTornadoIndicators
       // const data = {
       //   threat: "HIGH", // for testing
       //   wind: 12,
@@ -241,8 +241,6 @@ export default function App() {
         Animated.timing(fadeAnim, { toValue: 0.6, duration: 150, useNativeDriver: true }),
         Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
       ]).start();
-
-      if (!data) return;
 
       setWeatherData({
         stormProbability: data.probability,

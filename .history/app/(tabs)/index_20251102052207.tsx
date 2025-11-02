@@ -242,13 +242,11 @@ export default function App() {
         Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
       ]).start();
 
-      if (!data) return;
-
       setWeatherData({
-        stormProbability: data.probability,
-        windSpeed: data.wind,
-        pressure: data.pressure,
-        gusts: data.gusts,
+        stormProbability: data?.probability,
+        windSpeed: data?.wind,
+        pressure: data?.pressure,
+        gusts: data?.gusts,
         lastUpdate: new Date().toLocaleTimeString(),
       });
       setUpdateTick((t) => t + 1);
