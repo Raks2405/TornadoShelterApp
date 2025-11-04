@@ -4,6 +4,7 @@
     "slug": "tornadoapp",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
     "scheme": "tornadoshelterapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

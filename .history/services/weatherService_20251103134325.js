@@ -49,7 +49,7 @@ export async function fetchTornadoIndicators(lat, lon) {
     else if (probability >= 25) threat = "MODERATE";
     else threat = "LOW";
 
-    console.log("🌀 Tornado risk data:", {
+    console.log("Tornado risk data:", {
       wind,
       gusts,
       pressure,

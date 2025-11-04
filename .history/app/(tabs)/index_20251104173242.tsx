@@ -16,7 +16,6 @@ import {
   View
 } from "react-native";
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import { fetchTornadoIndicators } from '../utils/fetchTornadoIndicators';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 

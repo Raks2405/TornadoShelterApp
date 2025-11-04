@@ -16,7 +16,6 @@ import {
   View
 } from "react-native";
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import { fetchTornadoIndicators } from '../utils/fetchTornadoIndicators';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -242,14 +241,14 @@ export default function App() {
   // ---------- Tornado Fetch ----------
   useEffect(() => {
     const getWeather = async () => {
-      const data = await fetchTornadoIndicators(region.latitude, region.longitude)
-      // const data = {
-      //   threat: "HIGH", // for testing
-      //   wind: 12,
-      //   probability: 75,
-      //   pressure: 1005,
-      //   gusts: 18,
-      // };
+      //const data = await fetchTornadoIndicators(region.latitude, region.longitude)
+      const data = {
+        threat: "HIGH", // for testing
+        wind: 12,
+        probability: 75,
+        pressure: 1005,
+        gusts: 18,
+      };
 
       // Animate flicker to show UI refresh
       Animated.sequence([

@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "b1544e55-31d7-451c-9311-16ceed26a97d"
+      }
+    },
+    "android": {
+      "package": "com.rakshith_raks.functions"
+    }
+  }
+}
